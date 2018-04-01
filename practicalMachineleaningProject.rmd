@@ -112,7 +112,7 @@ trControl <- trainControl(method="cv", number=3)
 modelCt<- train(classe~., data=training, method="rpart", trControl=trControl)
 ```
 
-###Predicting on validation data
+### Predicting on validation data
 ```{r}
 predictCt <- predict(modelCt, newdata=testing)
 confMatCt <- confusionMatrix(predictCt, testing$classe)
@@ -158,7 +158,7 @@ we can try the boosting to see if it will perform better than the Random Forest.
 modelGbm <- train(classe ~ ., data=training, method = "gbm",
 trControl = trControl, verbose = F)
 ```
-###Predicting on cross validation Set
+### Predicting on cross validation Set
 ```{r}
 predictGbm <- predict(modelGbm, newdata=testing)
 confMatGbm <- confusionMatrix(predictGbm, testing$classe)
@@ -172,20 +172,20 @@ sampleOutErrorGbm
 
 The estimated accuracy of the model is 95.63% and the estimated out-of-sample error is 4.36 %
 
-##Predicting on Test Data Set with boosting model
+## Predicting on Test Data Set with boosting model
 ```{r}
 resultGbm<-predict(modelGbm,testSet)
 resultGbm
 ```
 
-##Predicting on Test Data Set with Random Forest model
+## Predicting on Test Data Set with Random Forest model
 
 ```{r}
 resultRf <- predict(modelRf, testSet)
 resultRf
 ```
 
-##Creating submission files
+##  Creating submission files
 ```{r}
 writeResultToFiles = function(x) {
 n = length(x)
@@ -198,7 +198,7 @@ quote=FALSE, row.names=FALSE, col.names=FALSE)
 writeResultToFiles(resultRf)
 
 ```
-##Conlusion
+##  Conlusion
 
 Random Forest algorithm performe better than boosting model.Accuracy for Random Forest model is 99.27% compared to 95.63 % for boosting model. 
 The expected out-of-sample error for ramdom forest is  estimated at 0,7% while for the boosting model it is 4.3% .
