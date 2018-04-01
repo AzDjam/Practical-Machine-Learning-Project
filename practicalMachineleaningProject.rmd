@@ -1,0 +1,226 @@
+---
+title: "Activity recognition from accelerometers"
+author: "Djamila Azib"
+date: "March 31, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Overwiew
+
+the goal of the project is to predict activity from accelerometers. 
+The data is  from accelerometers on the belt, forearm, arm, and dumbell of 6
+participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different
+ways.
+The training data for this project are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har.
+
+# Libraries
+
+For this project we need the following libraries:
+
+```{r}
+library(caret)
+library(dplyr)
+library(randomForest)
+```
+
+# Downloading  the Data
+
+```{r}
+trainUrl <-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testUrl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+trainFile <- "pml-training.csv"
+testFile <- "pml-testing.csv"
+
+if (!file.exists(trainFile)) {
+download.file(trainUrl, destfile=trainFile, method="curl")
+}
+if (!file.exists(testFile)) {
+download.file(testUrl, destfile=testFile, method="curl")
+}
+
+# read the two csv files into data frame.
+trainSet <- read.csv(trainFile )
+testSet <- read.csv(testFile) 
+str(trainSet)
+dim(trainSet)
+dim(testSet) 
+```
+
+The training data set contains 19622 observations and 160 variables.
+the testing data set contains 20 observations and 160 variables.The outcome variable is "classe"  
+
+
+
+# Preprocessing Data
+
+For the project, we use the data from accelerometers on the belt, forearm, arm, and dumbell.
+For the analysis,features with all missing values will be discarded as well as features that are irrelevant.We drop the  7 first columns:(X,user_names...).
+
+```{r}
+
+classe <- trainSet$classe
+#drop the 7 first columns from train set and test set
+trainSet  = subset(trainSet, select = -c(1:7) )
+testSet <- subset(testSet,select=-c(1:7))
+
+#kip the columns with numerical values in train set and test set
+
+trainSet <- trainSet[, sapply(trainSet, is.numeric)]
+testSet <- testSet[, sapply(testSet, is.numeric)]
+
+trainSet$classe <- classe
+
+#kip just  the columns without NA values in the train set and test set
+trainSet = trainSet[, colSums(is.na(trainSet)) == 0]
+testSet = testSet[, colSums(is.na(testSet)) == 0]
+dim(trainSet)
+dim(testSet)
+
+```
+After cleaning,the train set data set contains 19622 observations and 53 variables, while the test set data set contains 20 observations and 53 variables. 
+
+
+# Data Modeling
+
+We can split the  training set into a pure training data set (70%) and a validation data set (30%) .we will use the cross-validation technique to minimize overfitting. We choose 3 folds instead of larger number such as 5 or 10 because they  give higher run times but with no significant increase of the accuracy.
+We test three models:classification tree, Random Forest and boosting model .All work well with large data set. Decision tree and random forest algorithms provide a clear indication of which the features  are most important for classification 
+The boosting model aims to decrease bias. 
+The outcome variable "classe" is an unordered factor variable,so we can choose the error type as 1-accuracy.
+
+```{r}
+set.seed(917) # For reproducibile purpose
+inTrain <- createDataPartition(trainSet$classe, p=0.70, list=F)
+training <- trainSet[inTrain, ]
+testing <- trainSet[-inTrain, ]
+trControl <- trainControl(method="cv", number=3)
+```
+## classification tree
+
+### Fitting the model
+```{r}
+modelCt<- train(classe~., data=training, method="rpart", trControl=trControl)
+```
+
+###Predicting on validation data
+```{r}
+predictCt <- predict(modelCt, newdata=testing)
+confMatCt <- confusionMatrix(predictCt, testing$classe)
+confMatCt
+
+accuracyCt <-confMatCt$overall[1]
+accuracyCt
+sampleOutErrorCt<-1-accuracyCt
+sampleOutErrorCt
+
+```
+The accuracy for this model is very low 49.4% and the error out sample is very large 50.5%.This model perform poorly on the validation data set.We can already eliminate it
+
+
+## Random Forest algorithm 
+
+```{r}
+#fitControl<-trainControl(method="cv", number=3, allowParallel=T, verbose=T)
+modelRf<-train(classe~.,data=training, method="rf", trControl=trControl, verbose=F)
+```
+
+### Predicting on validation Data Set
+```{r}
+predictRf <- predict(modelRf, testing)
+confMatRf<-confusionMatrix(testing$classe, predictRf)
+accuracyRf <-confMatRf$overall[1]
+accuracyRf
+sampleOutErrorRf<-1-accuracyRf
+sampleOutErrorRf
+```
+
+the number of predictors giving the highest accuracy is 27.
+The estimated accuracy of the model is  99.27%  and the estimated out-of-sample error is 0.7%.
+the model perform well.
+
+
+##  Generalized Boosted Model
+we can try the boosting to see if it will perform better than the Random Forest.
+
+### fitting the model
+```{r}
+#controlGbm <- trainControl(method = "repeatedcv", number = 5, repeats = 1)
+modelGbm <- train(classe ~ ., data=training, method = "gbm",
+trControl = trControl, verbose = F)
+```
+###Predicting on cross validation Set
+```{r}
+predictGbm <- predict(modelGbm, newdata=testing)
+confMatGbm <- confusionMatrix(predictGbm, testing$classe)
+confMatGbm
+accuracyGbm <-confMatGbm$overall[1]
+accuracyGbm
+sampleOutErrorGbm<-1-accuracyGbm
+sampleOutErrorGbm
+```
+
+
+The estimated accuracy of the model is 95.63% and the estimated out-of-sample error is 4.36 %
+
+##Predicting on Test Data Set with boosting model
+```{r}
+resultGbm<-predict(modelGbm,testSet)
+resultGbm
+```
+
+##Predicting on Test Data Set with Random Forest model
+
+```{r}
+resultRf <- predict(modelRf, testSet)
+resultRf
+```
+
+##Creating submission files
+```{r}
+writeResultToFiles = function(x) {
+n = length(x)
+for(i in 1: n) {
+filename = paste0("problem_id_", i, ".txt")
+write.table(x[i], file=filename,
+quote=FALSE, row.names=FALSE, col.names=FALSE)
+}
+}
+writeResultToFiles(resultRf)
+
+```
+##Conlusion
+
+Random Forest algorithm performe better than boosting model.Accuracy for Random Forest model is 99.27% compared to 95.63 % for boosting model. 
+The expected out-of-sample error for ramdom forest is  estimated at 0,7% while for the boosting model it is 4.3% .
+Despite the fact that the result on the test Data Set is the same for the two models, 
+the random Forest model is choosen because it accuracy is larger and  it expected out-of-sample error is smaller. 
+with the random Forest model , we can expect that few, of the test samples will be missclassified.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
