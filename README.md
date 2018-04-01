@@ -1,2 +1,3 @@
 # Practical-Machine-Learning-Project
-Activity recognition from accelerometers
+
+the goal of the project is to predict activity from accelerometers
